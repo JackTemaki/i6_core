@@ -3,6 +3,7 @@ __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 import base64
 import inspect
 import json
+import os
 import pickle
 import pprint
 import string
@@ -73,6 +74,7 @@ class ReturnnConfig:
         config,
         post_config=None,
         *,
+        epoch_networks=None,
         python_prolog=None,
         python_prolog_hash=None,
         python_epilog="",
@@ -91,6 +93,7 @@ class ReturnnConfig:
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
+        self.epoch_networks = epoch_networks  # type: dict[int, dict]
         self.python_prolog = python_prolog
         self.python_prolog_hash = (
             python_prolog_hash if python_prolog_hash is not None else python_prolog
@@ -108,6 +111,26 @@ class ReturnnConfig:
     def write(self, path):
         with open(path, "wt", encoding="utf-8") as f:
             f.write(self.serialize())
+
+    def write_networks(self, path):
+        folder = os.path.join(os.path.dirname(path), "returnn_networks")
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+
+        # go through the networks and eliminate each network
+        # where the hash is identical to the previous one
+        stripped_networks = self.epoch_networks.copy()
+        last_hash = None
+        for key in sorted(self.epoch_networks.keys()):
+            hash = sis_hash_helper(self.epoch_networks[key])
+            if hash == last_hash:
+                stripped_networks.pop(key)
+            else:
+                last_hash = hash
+
+        with open(os.path.join(folder, "__init__.py"), "wt") as init_file:
+
+            init_file.write()
 
     def serialize(self):
         self.check_consistency()
@@ -203,6 +226,9 @@ class ReturnnConfig:
             "python_epilog_hash": self.python_epilog_hash,
             "python_prolog_hash": self.python_prolog_hash,
         }
+        if self.epoch_networks:
+            h["epoch_networks"] = self.epoch_networks
+
         return sis_hash_helper(h)
 
 
