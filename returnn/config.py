@@ -129,8 +129,20 @@ class ReturnnConfig:
                 last_hash = hash
 
         with open(os.path.join(folder, "__init__.py"), "wt") as init_file:
+            for key in sorted(self.epoch_networks.keys()):
+                init_file.write(
+                    "from .network%i import network as network%i\n" % (key, key)
+                )
 
-            init_file.write()
+            init_file.write("networks = {\n")
+            for key in sorted(self.epoch_networks.keys()):
+                init_file.write("%i: network%i,\n" % (key, key))
+            init_file.write("}\n")
+
+        for key in sorted(self.epoch_networks.keys()):
+            with open(os.path.join(folder, "network%i.py" % key), "wt") as net_file:
+                pp = pprint.PrettyPrinter(indent=2, width=150)
+                net_file.write("network = %s" % pp.pformat(stripped_networks[key]))
 
     def serialize(self):
         self.check_consistency()
